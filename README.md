@@ -23,7 +23,33 @@ Much of the groundwork for the implementation of SAML 2.0 authentication used in
 have been made to support dual DB+SAML authentication, and to use Okta as the SAML IDP rather than SSOCircle.
 
 ## Walkthrough
-### Pre-Login
+
+### Why SAML? Why Okta?
+
+There are a number of benefits to using SAML to handle authentication for your application:
+* **Loose coupling between your application and your authentication mechanism** increases independence
+between the two, allowing for more rapid development/evolution of application logic with less risk
+of regression
+* **Shifts the responsibility of authentication**, which involves storing and retrieving sensitive user information,
+to the Identity Provider (e.g. Okta) which will almost always offer less risk since identity management **is** their
+business model
+* Allows for an **improved user experience** via Single Sign-On while navigating between multiple apps
+
+**Okta is a very well-established identity provider with robust features and a wealth of support.** Managing users,
+accounts, and permissions with Okta is simple and straightforward while still flexible and extensible enough to support
+your application no matter how much it grows (even as it grows into several applications). And the friendly,
+growing community is available to answer any questions you may have!
+
+For this tutorial, you will need to sign up for a **FREE** trial account here: https://www.okta.com/free-trial/
+
+Still, maybe to support legacy systems or because you have strange security requirements, you may need to allow
+users to authenticate using either SAML or database credentials. The process to combine SAML 2.0 with DB auth in
+Spring Boot is what we'll tackle here!
+
+The source code for this tutorial can be found [here](https://gitlab.com/jcavazos/okta-saml-spring-boot). For now we will
+just discuss some of the important points, and at the end we'll go step by step to get the application running. 
+
+### The "Pre-Login" Page
 We want to have an initial page in which a user will enter their username for login. Depending on the pattern of the username,
 we will either direct the user to a standard Username/Password page for authenticating against the database, or direct
 them to the SAML auth flow.
