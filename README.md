@@ -1,6 +1,7 @@
 # okta-saml-spring-boot
 
-A Spring Boot application combining standard database authentication with SAML 2.0 authentication via Okta ( https://www.okta.com/ )
+A Spring Boot application combining standard database authentication with SAML 2.0 authentication via 
+[Okta](https://www.okta.com/)
 
 ## Introduction
 
@@ -49,13 +50,94 @@ Spring Boot is what we'll tackle here!
 The source code for this tutorial can be found [here](https://gitlab.com/jcavazos/okta-saml-spring-boot). For now we will
 just discuss some of the important points, and at the end we'll go step by step to get the application running. 
 
+### Dependencies
+This project will use the Spring Boot Starter libraries, along with the `spring-security-saml2-core` extension for 
+Spring Boot giving us the necessary SAML-related libraries.
+
+We'll also add the following dependencies to make life easier:
+* `com.h2database:h2` to provide a simple in-memory database
+* `org.projectlombok:lombok` to reduce boilerplate code (e.g. getters, setters)
+    * **Note:** some IDEs have trouble digesting Lombok-ified code due to version and plugin
+    incompatibilities. If you have trouble compiling this project, consider removing this
+    dependency and adding the missing boilerplate code
+* `nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect` a useful add-on for formatting Thymeleaf templates
+
+**Note:** The `spring-security-saml2-core` depends on the `opensaml` library, which is contained in the 
+[Shibboleth repository](https://build.shibboleth.net/nexus) and which we will define in our POM:
+
+```xml
+<parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.2.9.RELEASE</version>
+</parent>
+
+<repositories>
+    <repository>
+        <id>Shibboleth</id>
+        <name>Shibboleth</name>
+        <url>https://build.shibboleth.net/nexus/content/repositories/releases/</url>
+    </repository>
+</repositories>
+
+<dependencies>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+        <groupId> org.springframework.boot </groupId>
+        <artifactId>spring-boot-starter-thymeleaf</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>nz.net.ultraq.thymeleaf</groupId>
+        <artifactId>thymeleaf-layout-dialect</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.security.extensions</groupId>
+        <artifactId>spring-security-saml2-core</artifactId>
+        <version>1.0.10.RELEASE</version>
+    </dependency>
+    <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.h2database</groupId>
+        <artifactId>h2</artifactId>
+        <scope>runtime</scope>
+    </dependency>
+</dependencies>
+
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-maven-plugin</artifactId>
+        </plugin>
+    </plugins>
+</build>
+```
+
 ### The "Pre-Login" Page
 We want to have an initial page in which a user will enter their username for login. Depending on the pattern of the username,
 we will either direct the user to a standard Username/Password page for authenticating against the database, or direct
 them to the SAML auth flow.
 
 #### index.html
-```
+```html
 <!doctype html>
 <html
         lang="en"
@@ -79,8 +161,8 @@ them to the SAML auth flow.
 </html>
 ```
 
-`IndexController.java`
-```
+#### IndexController.java
+```java
 @Controller
 public class IndexController {
 
@@ -113,7 +195,7 @@ Within `IndexController` we are checking whether the username matches a particul
 ### SAML Flow
 When redirected to the `/doSaml` endpoint, the SAML flow will be initiated by a custom authentication entry point
 defined in `WebSecurityConfig.configure(HttpSecurity)`:
-```
+```java
 @Autowired
 private SAMLEntryPoint samlEntryPoint;
 
@@ -140,7 +222,7 @@ in our configuration. This will redirect the user to authenticate via Okta, and 
 completion. To handle this redirect, we will also define a `Controller` to redirect the user following a successful
 SAML auth:
 
-```
+```java
 @Controller
 public class SamlResponseController {
     @GetMapping(value = "/doSaml")
@@ -162,7 +244,7 @@ At this point, the user should be successfully authenticated with the app!
 
 If the username matches another pattern, the user will be redirected to a standard-looking form login page:
 #### form-login.html
-```
+```html
 <!doctype html>
 <html
         lang="en"
@@ -190,7 +272,7 @@ If the username matches another pattern, the user will be redirected to a standa
 The login submission will be handled by a `Controller` which will call on the
 `AuthenticationManager` we have built in `WebSecurityConfig`:
 
-```
+```java
 @Override
 protected void configure(AuthenticationManagerBuilder auth) throws Exception {
     auth.authenticationProvider(dbAuthProvider);
@@ -201,7 +283,7 @@ protected void configure(AuthenticationManagerBuilder auth) throws Exception {
 `DbAuthProvider` is a custom component which performs standard DB authentication by checking
 the supplied password versus a hashed copy in the database:
 
-```
+```java
 @Component
 public class DbAuthProvider implements AuthenticationProvider {
     private final CombinedUserDetailsService combinedUserDetailsService;
@@ -242,7 +324,7 @@ The above class calls on `CombinedUserDetailsService` which is another custom co
 an appropriate `UserDetails` object depending on whether the user is authenticated using the database or SAML,
 by implementing `UserDetailsService` and `SAMLUserDetailsService` respectively:
 
-```
+```java
 @Service
 public class CombinedUserDetailsService implements UserDetailsService, SAMLUserDetailsService {
     private final UserRepository userRepository;
@@ -287,7 +369,7 @@ public class CombinedUserDetailsService implements UserDetailsService, SAMLUserD
 
 The resulting `Controller` to handle DB authentication will look like this:
 
-```
+```java
 @Controller
 public class DbLoginController {
 
@@ -325,10 +407,20 @@ public class DbLoginController {
 When `doLogin()` is called via `POST`, the `AuthenticationManager` we have built in the above steps
 will handle the username/password authentication and redirect the user if successful.
 
+For ease of use, we'll define two users in our database: one for DB auth and one for SAML. Both users are 
+defined in our database, but only one of them will be authenticated against the database:
+
+#### /src/main/resources/data.sql
+```sql
+INSERT INTO user (ID, USERNAME, PASSWORD_HASH) VALUES
+('17e3d83c-6e09-41b8-b4ee-b4b14cb8a797', 'dbuser@dbauth.com', '(bcrypted password)'),   /*DB AUTH*/
+('17e3d83c-6e09-41b8-b4ee-b4b14cb8a798', 'samluser@oktaauth.com', 'bcrypted password'); /*SAML AUTH*/
+```
+
 ## Get Running
 
 #### Step 1
-Clone this project
+Clone the repository [here](https://gitlab.com/jcavazos/okta-saml-spring-boot)
 
 #### Step 2
 Sign up for a free trial account at https://www.okta.com/free-trial/ (this is required to create SAML 2.0 applications in Okta)
@@ -398,3 +490,6 @@ Navigate to your application's home page at http://localhost:8080
 ![](blog/img/14.png)
 
 ![](blog/img/15.png)
+
+And you're done! You've successfully configured your project to support authentication via both the database
+and SAML 2.0!
