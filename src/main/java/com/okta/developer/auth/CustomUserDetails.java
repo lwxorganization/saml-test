@@ -1,6 +1,7 @@
 package com.okta.developer.auth;
 
 import lombok.Getter;
+import lombok.ToString;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 

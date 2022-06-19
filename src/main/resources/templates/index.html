@@ -9,9 +9,22 @@
 <section layout:fragment="content">
     <h6 class="border-bottom border-gray pb-2 mb-0">Please Log In:</h6>
     <div class="media text-muted pt-3">
-        <form action="#" th:action="@{/pre-auth}" th:object="${username}" method="post">
-            <p>Username: <input type="text" th:field="*{username}" /></p>
-            <p><input type="submit" value="Submit" /></p>
+        <form action="#" th:action="@{/login}" method="post">
+            <p>Username: <input type="text" name="username" /></p>
+            <p>password: <input type="text" name="password" /></p>
+            <p><input type="submit" value="账号密码登录" /></p>
+        </form>
+        <br/>
+        <p th:text="${error}" style="color: red"></p>
+    </div>
+    <h6 class="border-bottom border-gray pb-2 mb-0">Please Log In By Third:</h6>
+    <div class="media text-muted pt-3">
+        <form action="#" th:action="@{/doSaml}"
+              method="get">
+<!--            <p>Username: <input type="text" th:field="*{username}" /></p>-->
+<!--            <p>password: <input type="text" th:field="*{password}" /></p>-->
+            <p><input type="submit" value="okta" /></p>
+<!--            <p><input type="submit" value="Submit" /></p>-->
         </form>
         <br/>
         <p th:text="${error}" style="color: red"></p>

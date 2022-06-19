@@ -37,10 +37,13 @@ public class DbAuthProvider implements AuthenticationProvider {
 
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
-        if (!StringUtils.endsWithIgnoreCase(authentication.getPrincipal().toString(), Constants.DB_USERNAME_SUFFIX)) {
-            // this user is not supported by DB authentication
+        if (!(authentication instanceof UsernamePasswordAuthenticationToken)){
             return null;
         }
+//        if (!StringUtils.endsWithIgnoreCase(authentication.getPrincipal().toString(), Constants.DB_USERNAME_SUFFIX)) {
+//            // this user is not supported by DB authentication
+//            return null;
+//        }
 
         UserDetails user = combinedUserDetailsService.loadUserByUsername(authentication.getPrincipal().toString());
         String rawPw = authentication.getCredentials() == null ? null : authentication.getCredentials().toString();
@@ -50,7 +53,7 @@ public class DbAuthProvider implements AuthenticationProvider {
             return new UsernamePasswordAuthenticationToken(
                     user.getUsername(),
                     rawPw,
-                    Collections.emptyList());
+                    user.getAuthorities());
         } else {
             LOGGER.error("User failed to log in: {}", user.getUsername());
             throw new BadCredentialsException("Bad password");

@@ -1,5 +1,9 @@
 package com.okta.developer.config;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Timer;
+
 import com.okta.developer.auth.AuthMethod;
 import com.okta.developer.auth.CustomUserDetails;
 import com.okta.developer.auth.DbAuthProvider;
@@ -20,22 +24,29 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.saml.*;
+import org.springframework.security.saml.SAMLAuthenticationProvider;
+import org.springframework.security.saml.SAMLDiscovery;
+import org.springframework.security.saml.SAMLEntryPoint;
+import org.springframework.security.saml.SAMLLogoutFilter;
+import org.springframework.security.saml.SAMLLogoutProcessingFilter;
+import org.springframework.security.saml.SAMLProcessingFilter;
+import org.springframework.security.saml.SAMLWebSSOHoKProcessingFilter;
 import org.springframework.security.saml.key.KeyManager;
-import org.springframework.security.saml.metadata.*;
+import org.springframework.security.saml.metadata.ExtendedMetadata;
+import org.springframework.security.saml.metadata.MetadataDisplayFilter;
+import org.springframework.security.saml.metadata.MetadataGenerator;
+import org.springframework.security.saml.metadata.MetadataGeneratorFilter;
 import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.channel.ChannelProcessingFilter;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
+import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Timer;
 
 /**
  * Main configuration class for wiring together DB + SAML authentication
@@ -46,7 +57,9 @@ import java.util.Timer;
  */
 @Configuration
 @EnableWebSecurity
-@EnableGlobalMethodSecurity(securedEnabled = true)
+@EnableGlobalMethodSecurity(
+        securedEnabled = true,
+        prePostEnabled = true)
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter implements DisposableBean {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(WebSecurityConfig.class);
@@ -55,7 +68,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter implements D
     private String samlAudience;
 
     @Autowired
-    @Qualifier("saml")
+//    @Qualifier("saml")
     private SavedRequestAwareAuthenticationSuccessHandler samlAuthSuccessHandler;
 
     @Autowired
@@ -90,9 +103,6 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter implements D
 
     @Autowired
     private ExtendedMetadata extendedMetadata;
-
-    @Autowired
-    private CachingMetadataManager cachingMetadataManager;
 
     @Autowired
     private KeyManager keyManager;
@@ -153,6 +163,18 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter implements D
         return new FilterChainProxy(chains);
     }
 
+
+    @Bean
+    public UsernamePasswordAuthenticationFilter usernamePasswordAuthenticationFilter() throws Exception{
+        UsernamePasswordAuthenticationFilter filter = new UsernamePasswordAuthenticationFilter();
+        filter.setAuthenticationSuccessHandler(new SimpleUrlAuthenticationSuccessHandler(
+                "/landing"));
+        filter.setAuthenticationFailureHandler(new SimpleUrlAuthenticationFailureHandler("/index"));
+        filter.setAuthenticationManager(authenticationManagerBean());
+        return filter;
+    }
+
+
     /**
      * Returns the authentication manager currently used by Spring.
      * It represents a bean definition with the aim allow wiring from
@@ -168,6 +190,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter implements D
     public MetadataGeneratorFilter metadataGeneratorFilter() {
         return new MetadataGeneratorFilter(metadataGenerator());
     }
+
+
 
     /**
      * Defines the web based security configuration.
@@ -201,6 +225,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter implements D
         http
                 .addFilterBefore(metadataGeneratorFilter(), ChannelProcessingFilter.class)
                 .addFilterAfter(samlFilter(), BasicAuthenticationFilter.class)
+                .addFilter(usernamePasswordAuthenticationFilter())
                 .addFilterBefore(samlFilter(), CsrfFilter.class);
         http
                 .authorizeRequests()
@@ -237,9 +262,11 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter implements D
                 });
     }
 
+
+
     /**
      * Define a chain of authentication providers, starting with DB auth.
-     *
+     * <p>
      * If the user is not supported by DB authentication, it will fall through
      * to the SAML auth provider.
      */

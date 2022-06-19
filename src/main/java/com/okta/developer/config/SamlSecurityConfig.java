@@ -232,8 +232,8 @@ public class SamlSecurityConfig {
     // IDP Metadata configuration - paths to metadata of IDPs in circle of trust
     // is here
     // Do no forget to call initialize method on providers
-    @Bean
-    @Qualifier("metadata")
+    @Bean("metadata")
+//    @Qualifier("metadata")
     public CachingMetadataManager metadata() throws MetadataProviderException, ResourceException {
         List<MetadataProvider> providers = new ArrayList<>();
         providers.add(oktaExtendedMetadataProvider());
