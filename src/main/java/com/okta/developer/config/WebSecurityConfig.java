@@ -7,6 +7,8 @@ import java.util.Timer;
 import com.okta.developer.auth.AuthMethod;
 import com.okta.developer.auth.CustomUserDetails;
 import com.okta.developer.auth.DbAuthProvider;
+import com.okta.developer.newconfig.MyAccessDecisionManager;
+import com.okta.developer.newconfig.MyFilterSecurityMetadataSource;
 import org.apache.commons.httpclient.MultiThreadedHttpConnectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.ObjectPostProcessor;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -40,6 +43,7 @@ import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.channel.ChannelProcessingFilter;
+import org.springframework.security.web.access.intercept.FilterSecurityInterceptor;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -238,6 +242,14 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter implements D
                 .antMatchers("/img/**").permitAll()
                 .antMatchers("/js/**").permitAll()
                 .antMatchers("/sw.js").permitAll()
+                .withObjectPostProcessor(new ObjectPostProcessor<FilterSecurityInterceptor>() {
+                    @Override
+                    public <O extends FilterSecurityInterceptor> O postProcess(O object) {
+                        object.setSecurityMetadataSource(myFilterSecurityMetadataSource);
+                        object.setAccessDecisionManager(myAccessDecisionManager);
+                        return object;
+                    }
+                })
                 .anyRequest().authenticated();
 
         http
@@ -261,6 +273,12 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter implements D
                     }
                 });
     }
+
+    @Autowired
+    private MyAccessDecisionManager myAccessDecisionManager;
+    @Autowired
+    private MyFilterSecurityMetadataSource myFilterSecurityMetadataSource;
+
 
 
 

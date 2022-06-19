@@ -1,10 +1,15 @@
 package com.okta.developer.auth;
 
+import javax.annotation.Resource;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import com.okta.developer.newconfig.SysPermissionEntity;
+import com.okta.developer.newconfig.SysUserEntity;
+import com.okta.developer.newconfig.SysUserRepository;
 import com.okta.developer.repository.UserRepository;
 import org.apache.commons.codec.binary.Hex;
 import org.opensaml.saml2.core.NameID;
@@ -37,13 +42,16 @@ public class CombinedUserDetailsService implements UserDetailsService, SAMLUserD
 
     @Override
     public UserDetails loadUserByUsername(String s) throws UsernameNotFoundException {
-        StoredUser storedUser = lookupUser(s);
-        SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_admin");
-        return new CustomUserDetails(
-                AuthMethod.DATABASE,
-                storedUser.getUsername(),
-                storedUser.getPasswordHash(),
-                Arrays.asList(authority));
+//        StoredUser storedUser = lookupUser(s);
+//        SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_admin");
+//        return new CustomUserDetails(
+//                AuthMethod.DATABASE,
+//                storedUser.getUsername(),
+//                storedUser.getPasswordHash(),
+//                Arrays.asList(authority));
+        CustomUserDetails userDetails=  newLoadUserByUsername(s);
+        userDetails.setAuthMethod(AuthMethod.DATABASE);
+        return userDetails;
     }
 
     @Override
@@ -65,13 +73,33 @@ public class CombinedUserDetailsService implements UserDetailsService, SAMLUserD
         LOGGER.info(" getSPProvidedID: {} " ,nameID.getSPProvidedID());
         LOGGER.info(" getValidators: {} " ,nameID.getValidators());
         StoredUser storedUser = lookupUser(nameID.getValue());
-        SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_admin");
+//        SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_admin");
+//
+//        return new CustomUserDetails(
+//                AuthMethod.SAML,
+//                storedUser.getUsername(),
+//                storedUser.getPasswordHash(),
+//                Arrays.asList(authority));
+        CustomUserDetails userDetails=  newLoadUserByUsername(nameID.getValue());
+        userDetails.setAuthMethod(AuthMethod.SAML);
+        return userDetails;
+    }
 
-        return new CustomUserDetails(
-                AuthMethod.SAML,
-                storedUser.getUsername(),
-                storedUser.getPasswordHash(),
-                Arrays.asList(authority));
+    @Resource
+    private SysUserRepository sysUserRepository;
+
+    private CustomUserDetails newLoadUserByUsername(String username){
+        SysUserEntity sysUserEntity = sysUserRepository.findByUsername(username);
+        if (null == sysUserEntity) {
+            throw new UsernameNotFoundException("用户不存在");
+        }
+        Set<SimpleGrantedAuthority> authorities = sysUserEntity.getRoles().stream()
+                .flatMap(roleId->roleId.getPermissions().stream())
+                .map(SysPermissionEntity::getCode)
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toSet());
+
+        return new CustomUserDetails(sysUserEntity.getUsername(), sysUserEntity.getPassword(), true, authorities);
     }
 
     private StoredUser lookupUser(String username) {
