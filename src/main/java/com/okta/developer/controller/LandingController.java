@@ -30,6 +30,11 @@ public class LandingController {
 
     @RequestMapping("/landing")
     public String landing(Model model) {
+        setAttribute(model);
+        return "landing";
+    }
+
+    private void setAttribute(Model model) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = StringUtils.EMPTY;
         if (Objects.nonNull(authentication)) {
@@ -42,8 +47,18 @@ public class LandingController {
         }
         LOGGER.info("Current auth: {}", authentication == null ? "NULL" : authentication.getPrincipal());
         model.addAttribute("username", username);
+    }
+
+    /**
+     * @desc when using logout page to login ,it will be redirected to this ,
+     * @return
+     */
+    @GetMapping("/login")
+    public String login(Model model) {
+        setAttribute(model);
         return "landing";
     }
+
 
     @GetMapping("/hello")
     @ResponseBody

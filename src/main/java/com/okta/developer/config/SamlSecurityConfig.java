@@ -1,5 +1,12 @@
 package com.okta.developer.config;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Timer;
+
 import com.okta.developer.auth.CombinedUserDetailsService;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.MultiThreadedHttpConnectionManager;
@@ -17,7 +24,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
-import org.springframework.security.saml.*;
+import org.springframework.security.saml.SAMLAuthenticationProvider;
+import org.springframework.security.saml.SAMLBootstrap;
+import org.springframework.security.saml.SAMLDiscovery;
+import org.springframework.security.saml.SAMLEntryPoint;
+import org.springframework.security.saml.SAMLLogoutFilter;
+import org.springframework.security.saml.SAMLLogoutProcessingFilter;
 import org.springframework.security.saml.context.SAMLContextProviderImpl;
 import org.springframework.security.saml.key.JKSKeyManager;
 import org.springframework.security.saml.key.KeyManager;
@@ -27,16 +39,30 @@ import org.springframework.security.saml.metadata.ExtendedMetadata;
 import org.springframework.security.saml.metadata.ExtendedMetadataDelegate;
 import org.springframework.security.saml.metadata.MetadataDisplayFilter;
 import org.springframework.security.saml.parser.ParserPoolHolder;
-import org.springframework.security.saml.processor.*;
+import org.springframework.security.saml.processor.HTTPArtifactBinding;
+import org.springframework.security.saml.processor.HTTPPAOS11Binding;
+import org.springframework.security.saml.processor.HTTPPostBinding;
+import org.springframework.security.saml.processor.HTTPRedirectDeflateBinding;
+import org.springframework.security.saml.processor.HTTPSOAP11Binding;
+import org.springframework.security.saml.processor.SAMLBinding;
+import org.springframework.security.saml.processor.SAMLProcessorImpl;
 import org.springframework.security.saml.util.VelocityFactory;
-import org.springframework.security.saml.websso.*;
+import org.springframework.security.saml.websso.ArtifactResolutionProfile;
+import org.springframework.security.saml.websso.ArtifactResolutionProfileImpl;
+import org.springframework.security.saml.websso.SingleLogoutProfile;
+import org.springframework.security.saml.websso.SingleLogoutProfileImpl;
+import org.springframework.security.saml.websso.WebSSOProfile;
+import org.springframework.security.saml.websso.WebSSOProfileConsumer;
+import org.springframework.security.saml.websso.WebSSOProfileConsumerHoKImpl;
+import org.springframework.security.saml.websso.WebSSOProfileConsumerImpl;
+import org.springframework.security.saml.websso.WebSSOProfileECPImpl;
+import org.springframework.security.saml.websso.WebSSOProfileImpl;
+import org.springframework.security.saml.websso.WebSSOProfileOptions;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler;
-
-import java.util.*;
 
 /**
  * Configure settings and information required for SAML 2.0 authentication with Okta
@@ -233,7 +259,6 @@ public class SamlSecurityConfig {
     // is here
     // Do no forget to call initialize method on providers
     @Bean("metadata")
-//    @Qualifier("metadata")
     public CachingMetadataManager metadata() throws MetadataProviderException, ResourceException {
         List<MetadataProvider> providers = new ArrayList<>();
         providers.add(oktaExtendedMetadataProvider());

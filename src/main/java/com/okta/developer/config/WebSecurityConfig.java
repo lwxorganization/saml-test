@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 
-import com.okta.developer.auth.AuthMethod;
-import com.okta.developer.auth.CustomUserDetails;
 import com.okta.developer.auth.DbAuthProvider;
 import org.apache.commons.httpclient.MultiThreadedHttpConnectionManager;
 import org.slf4j.Logger;
@@ -22,8 +20,6 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.saml.SAMLAuthenticationProvider;
 import org.springframework.security.saml.SAMLDiscovery;
 import org.springframework.security.saml.SAMLEntryPoint;
@@ -42,8 +38,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.channel.ChannelProcessingFilter;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
-import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -164,17 +158,6 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter implements D
     }
 
 
-    @Bean
-    public UsernamePasswordAuthenticationFilter usernamePasswordAuthenticationFilter() throws Exception{
-        UsernamePasswordAuthenticationFilter filter = new UsernamePasswordAuthenticationFilter();
-        filter.setAuthenticationSuccessHandler(new SimpleUrlAuthenticationSuccessHandler(
-                "/landing"));
-        filter.setAuthenticationFailureHandler(new SimpleUrlAuthenticationFailureHandler("/index"));
-        filter.setAuthenticationManager(authenticationManagerBean());
-        return filter;
-    }
-
-
     /**
      * Returns the authentication manager currently used by Spring.
      * It represents a bean definition with the aim allow wiring from
@@ -207,31 +190,19 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter implements D
         http
                 .httpBasic()
                 .authenticationEntryPoint((request, response, authException) -> {
-                    /*
-                    Unauthenticated requests will be routed through this class.
-
-                    If a request is intended to begin the SAML auth workflow, it will be
-                    initiated here {@see IndexController.preAuth()}.
-
-                    Otherwise, the user will be redirected to the pre-auth landing page.
-                    */
-                    if (request.getRequestURI().endsWith("doSaml")) {
-                        samlEntryPoint.commence(request, response, authException);
-                    } else {
-                        response.sendRedirect("/");
-                    }
+                    /**
+                     * add authentication login by jwt
+                     * */
+                    response.sendRedirect("/");
                 });
 
         http
                 .addFilterBefore(metadataGeneratorFilter(), ChannelProcessingFilter.class)
                 .addFilterAfter(samlFilter(), BasicAuthenticationFilter.class)
-                .addFilter(usernamePasswordAuthenticationFilter())
                 .addFilterBefore(samlFilter(), CsrfFilter.class);
         http
                 .authorizeRequests()
                 .antMatchers("/").permitAll()
-                .antMatchers("/pre-auth**").permitAll()
-                .antMatchers("/form-login**").permitAll()
                 .antMatchers("/error").permitAll()
                 .antMatchers("/saml/**").permitAll()
                 .antMatchers("/css/**").permitAll()
@@ -239,27 +210,6 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter implements D
                 .antMatchers("/js/**").permitAll()
                 .antMatchers("/sw.js").permitAll()
                 .anyRequest().authenticated();
-
-        http
-                .logout()
-                .addLogoutHandler((request, response, authentication) -> {
-                    /*
-                    If the user is authenticated via SAML, we need to direct them to the appropriate
-                    SAML logout flow
-                     */
-                    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-                    if (auth instanceof CustomUserDetails) {
-                        CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
-                        if (userDetails.getAuthMethod() == AuthMethod.SAML) {
-                            try {
-                                response.sendRedirect("/saml/logout");
-                            } catch (Exception e) {
-                                LOGGER.error("Error processing logout for SAML user", e);
-                                throw new RuntimeException(e);
-                            }
-                        }
-                    }
-                });
     }
 
 
